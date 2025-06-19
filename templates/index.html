@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Workspace Shared Contacts Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <div class="logo">
+                        <i class="fab fa-google"></i>
+                        <h1>Workspace Contacts Manager</h1>
+                    </div>
+                    <div class="header-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="total-contacts">0</span>
+                            <span class="stat-label">Total Contacts</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="duplicate-count">0</span>
+                            <span class="stat-label">Potential Duplicates</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <nav class="nav-tabs">
+            <div class="container">
+                <button class="tab-btn active" data-tab="contacts">
+                    <i class="fas fa-address-book"></i>
+                    Contacts
+                </button>
+                <button class="tab-btn" data-tab="add-contact">
+                    <i class="fas fa-user-plus"></i>
+                    Add Contact
+                </button>
+                <button class="tab-btn" data-tab="duplicates">
+                    <i class="fas fa-copy"></i>
+                    Find Duplicates
+                </button>
+                <button class="tab-btn" data-tab="bulk-import">
+                    <i class="fas fa-upload"></i>
+                    Bulk Import
+                </button>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <div class="container">
+                <!-- Loading indicator -->
+                <div id="loading" class="loading-overlay hidden">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Error/Success notifications -->
+                <div id="notifications" class="notifications"></div>
+
+                <!-- Contacts Tab -->
+                <div class="tab-content active" id="contacts-tab">
+                    <div class="tab-header">
+                        <h2><i class="fas fa-address-book"></i> Shared Contacts</h2>
+                        <div class="tab-actions">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="contact-search" placeholder="Search contacts...">
+                            </div>
+                            <button class="btn btn-primary" onclick="refreshContacts()">
+                                <i class="fas fa-refresh"></i>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="contacts-grid" id="contacts-grid">
+                        <!-- Contacts will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Add Contact Tab -->
+                <div class="tab-content" id="add-contact-tab">
+                    <div class="tab-header">
+                        <h2><i class="fas fa-user-plus"></i> Add New Contact</h2>
+                    </div>
+                    <form class="contact-form" id="add-contact-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="first_name">First Name *</label>
+                                <input type="text" id="first_name" name="first_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="last_name">Last Name *</label>
+                                <input type="text" id="last_name" name="last_name" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="email">Email *</label>
+                                <input type="email" id="email" name="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Phone</label>
+                                <input type="tel" id="phone" name="phone">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="display_name">Display Name</label>
+                            <input type="text" id="display_name" name="display_name">
+                        </div>
+                        <div class="form-group">
+                            <label for="notes">Notes</label>
+                            <textarea id="notes" name="notes" rows="3"></textarea>
+                        </div>
+                        
+                        <!-- Additional Emails -->
+                        <div class="form-section">
+                            <h3>Additional Emails</h3>
+                            <div id="additional-emails">
+                                <div class="email-input">
+                                    <input type="email" name="additional_emails[]" placeholder="Additional email address">
+                                    <button type="button" class="btn btn-icon" onclick="removeEmailField(this)">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-secondary" onclick="addEmailField()">
+                                <i class="fas fa-plus"></i>
+                                Add Email
+                            </button>
+                        </div>
+
+                        <!-- Address -->
+                        <div class="form-section">
+                            <h3>Address</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="street">Street</label>
+                                    <input type="text" id="street" name="address.street">
+                                </div>
+                                <div class="form-group">
+                                    <label for="city">City</label>
+                                    <input type="text" id="city" name="address.city">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="region">State/Region</label>
+                                    <input type="text" id="region" name="address.region">
+                                </div>
+                                <div class="form-group">
+                                    <label for="postcode">Postal Code</label>
+                                    <input type="text" id="postcode" name="address.postcode">
+                                </div>
+                                <div class="form-group">
+                                    <label for="country">Country</label>
+                                    <input type="text" id="country" name="address.country">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                Create Contact
+                            </button>
+                            <button type="reset" class="btn btn-secondary">
+                                <i class="fas fa-times"></i>
+                                Clear Form
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Duplicates Tab -->
+                <div class="tab-content" id="duplicates-tab">
+                    <div class="tab-header">
+                        <h2><i class="fas fa-copy"></i> Duplicate Detection</h2>
+                        <div class="tab-actions">
+                            <div class="form-group inline">
+                                <label for="similarity-threshold">Similarity Threshold:</label>
+                                <input type="range" id="similarity-threshold" min="0.5" max="1.0" step="0.05" value="0.8">
+                                <span id="threshold-value">80%</span>
+                            </div>
+                            <button class="btn btn-primary" onclick="findDuplicates()">
+                                <i class="fas fa-search"></i>
+                                Find Duplicates
+                            </button>
+                        </div>
+                    </div>
+                    <div class="duplicates-container" id="duplicates-container">
+                        <!-- Duplicates will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Bulk Import Tab -->
+                <div class="tab-content" id="bulk-import-tab">
+                    <div class="tab-header">
+                        <h2><i class="fas fa-upload"></i> Bulk Import</h2>
+                    </div>
+                    <div class="import-section">
+                        <div class="upload-area" id="upload-area">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <h3>Drop CSV file here or click to browse</h3>
+                            <p>Supported format: CSV with columns: first_name, last_name, email, phone, notes</p>
+                            <input type="file" id="csv-file" accept=".csv" style="display: none;">
+                        </div>
+                        <div class="import-preview" id="import-preview" style="display: none;">
+                            <h3>Preview</h3>
+                            <div class="preview-table-container">
+                                <table class="preview-table" id="preview-table">
+                                    <!-- Preview will be populated here -->
+                                </table>
+                            </div>
+                            <div class="import-actions">
+                                <button class="btn btn-primary" onclick="importContacts()">
+                                    <i class="fas fa-upload"></i>
+                                    Import Contacts
+                                </button>
+                                <button class="btn btn-secondary" onclick="cancelImport()">
+                                    <i class="fas fa-times"></i>
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Contact Edit Modal -->
+        <div class="modal" id="edit-contact-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Edit Contact</h3>
+                    <button class="modal-close" onclick="closeEditModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form class="contact-form" id="edit-contact-form">
+                    <!-- Form fields will be populated dynamically -->
+                </form>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div class="modal" id="confirm-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Confirm Action</h3>
+                    <button class="modal-close" onclick="closeConfirmModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirm-message"></p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" id="confirm-yes">Yes</button>
+                    <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
