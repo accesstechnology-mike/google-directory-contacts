@@ -16,7 +16,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration
-SCOPES = ['https://www.googleapis.com/auth/admin.directory.user']
+SCOPES = ['https://www.google.com/m8/feeds']
 SERVICE_ACCOUNT_FILE = os.getenv('SERVICE_ACCOUNT_FILE', 'credentials.json')
 DOMAIN = os.getenv('WORKSPACE_DOMAIN', 'example.com')
 
@@ -171,33 +171,52 @@ class GoogleWorkspaceContactsManager:
     
     def get_contacts(self):
         """Retrieve all shared contacts"""
-        url = f"https://www.google.com/m8/feeds/contacts/{self.domain}/full"
-        headers = self.get_auth_headers()
-        
-        if not headers:
-            return {"error": "Authentication failed"}
-        
-        try:
-            response = requests.get(url, headers=headers)
-            if response.status_code == 200:
-                # Parse XML response
-                root = ET.fromstring(response.text)
-                namespaces = {
-                    'atom': 'http://www.w3.org/2005/Atom',
-                    'gd': 'http://schemas.google.com/g/2005'
-                }
-                
-                contacts = []
-                for entry in root.findall('atom:entry', namespaces):
-                    contact = self.parse_contact_xml(ET.tostring(entry, encoding='unicode'))
-                    if contact:
-                        contacts.append(contact)
-                
-                return {"contacts": contacts}
-            else:
-                return {"error": f"Failed to retrieve contacts: {response.status_code} - {response.text}"}
-        except Exception as e:
-            return {"error": f"Error retrieving contacts: {str(e)}"}
+        # Google Shared Contacts feed defaults to 25 results; request a much larger page so we don't cut off
+        max_results_per_page = 1000  # API allows up to 10000 but 1000 keeps payloads reasonable
+
+        base_url = f"https://www.google.com/m8/feeds/contacts/{self.domain}/full"
+        start_index = 1
+        contacts = []
+
+        while True:
+            params = {
+                'max-results': max_results_per_page,
+                'start-index': start_index
+            }
+            url = base_url
+            headers = self.get_auth_headers()
+
+            if not headers:
+                return {"error": "Authentication failed"}
+
+            try:
+                response = requests.get(url, headers=headers, params=params)
+                if response.status_code == 200:
+                    # Parse XML response
+                    root = ET.fromstring(response.text)
+                    namespaces = {
+                        'atom': 'http://www.w3.org/2005/Atom',
+                        'gd': 'http://schemas.google.com/g/2005'
+                    }
+
+                    entries = root.findall('atom:entry', namespaces)
+                    for entry in entries:
+                        contact = self.parse_contact_xml(ET.tostring(entry, encoding='unicode'))
+                        if contact:
+                            contacts.append(contact)
+
+                    # If fewer entries returned than requested, we've reached the end
+                    if len(entries) < max_results_per_page:
+                        break
+
+                    # Prepare next page
+                    start_index += max_results_per_page
+                else:
+                    return {"error": f"Failed to retrieve contacts: {response.status_code} - {response.text}"}
+            except Exception as e:
+                return {"error": f"Error retrieving contacts: {str(e)}"}
+
+        return {"contacts": contacts}
     
     def create_contact(self, contact_data):
         """Create a new shared contact"""
